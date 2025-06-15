@@ -121,6 +121,8 @@ import { INativeMcpDiscoveryHelperService, NativeMcpDiscoveryHelperChannelName }
 import { NativeMcpDiscoveryHelperService } from '../../platform/mcp/node/nativeMcpDiscoveryHelperService.js';
 import { IWebContentExtractorService } from '../../platform/webContentExtractor/common/webContentExtractor.js';
 import { NativeWebContentExtractorService } from '../../platform/webContentExtractor/electron-main/webContentExtractorService.js';
+import { IOllamaService } from '../../platform/ollama/common/ollama.js';
+import { NativeOllamaService } from '../../platform/ollama/electron-main/ollamaService.js';
 import ErrorTelemetry from '../../platform/telemetry/electron-main/errorTelemetry.js';
 
 /**
@@ -1030,7 +1032,10 @@ export class CodeApplication extends Disposable {
 		services.set(INativeHostMainService, new SyncDescriptor(NativeHostMainService, undefined, false /* proxied to other processes */));
 
 		// Web Contents Extractor
-		services.set(IWebContentExtractorService, new SyncDescriptor(NativeWebContentExtractorService, undefined, false /* proxied to other processes */));
+                services.set(IWebContentExtractorService, new SyncDescriptor(NativeWebContentExtractorService, undefined, false /* proxied to other processes */));
+
+               // Ollama
+               services.set(IOllamaService, new SyncDescriptor(NativeOllamaService));
 
 		// Webview Manager
 		services.set(IWebviewManagerService, new SyncDescriptor(WebviewMainService));
@@ -1382,8 +1387,13 @@ export class CodeApplication extends Disposable {
 		// We also show an error to the user in case this fails.
 		this.resolveShellEnvironment(this.environmentMainService.args, process.env, true);
 
-		// Crash reporter
-		this.updateCrashReporterEnablement();
+               // Crash reporter
+               this.updateCrashReporterEnablement();
+
+               // Start Ollama service
+               this.mainInstantiationService.invokeFunction(accessor => {
+                       accessor.get(IOllamaService).start().catch(err => this.logService.error(err));
+               });
 
 		// macOS: rosetta translation warning
 		if (isMacintosh && app.runningUnderARM64Translation) {
